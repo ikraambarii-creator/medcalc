@@ -1,0 +1,506 @@
+<!doctype html><html><head><meta charset=utf8><meta name=viewport content="width=device-width,initial-scale=1,viewport-fit=cover"><style>:root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#fff;color:#000}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}</style><link rel="manifest" href="manifest.webmanifest"><meta name="theme-color" content="#FFFFFF"><link rel="apple-touch-icon" href="icon-192.png"><meta name="apple-mobile-web-app-capable" content="yes"><meta name="mobile-web-app-capable" content="yes"></head><body>
+<title>Skor Klinis IGD</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap">
+<style>
+/* Layout: sticky header + calculator chips; one calculator at a time; result bar sticks to the bottom of the viewport. Sidebar on wide screens. */
+:root{
+  --bg:#f1f1f2; --surface:#ffffff; --surface-2:#f7f7f8; --ink:#1c1c1e; --muted:#6b6b70; --line:#dcdcdf;
+  --accent:#48484c; --accent-ink:#ffffff; --accent-soft:#e8e8ea;
+  --ok:#1c7a4a; --ok-soft:#e1f2e8; --warn:#9a5b00; --warn-soft:#fbf0dc; --bad:#b42318; --bad-soft:#fbe6e3;
+  --f-sans:"Inter",system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
+  --f-mono:"Inter",system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
+  --r:0;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#141415; --surface:#1d1d1f; --surface-2:#242426; --ink:#ececee; --muted:#a1a1a6; --line:#323235;
+  --accent:#c7c7cc; --accent-ink:#1c1c1e; --accent-soft:#2c2c2e;
+  --ok:#55c98e; --ok-soft:#173326; --warn:#f0a83f; --warn-soft:#352812; --bad:#f2796a; --bad-soft:#3a1a17;
+  color-scheme:dark;
+}}
+:root[data-theme="dark"]{
+  --bg:#141415; --surface:#1d1d1f; --surface-2:#242426; --ink:#ececee; --muted:#a1a1a6; --line:#323235;
+  --accent:#c7c7cc; --accent-ink:#1c1c1e; --accent-soft:#2c2c2e;
+  --ok:#55c98e; --ok-soft:#173326; --warn:#f0a83f; --warn-soft:#352812; --bad:#f2796a; --bad-soft:#3a1a17;
+  color-scheme:dark;
+}
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--ink);font-family:var(--f-sans);font-size:15px;line-height:1.45;-webkit-tap-highlight-color:transparent}
+button{font:inherit;color:inherit}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+
+.top{position:sticky;top:env(safe-area-inset-top,0px);z-index:20;background:var(--bg);border-bottom:1px solid var(--line)}
+.bar{display:flex;align-items:center;gap:12px;padding:10px 16px;max-width:1180px;margin:0 auto}
+.brand{display:flex;align-items:center;gap:10px;min-width:0;flex:1}
+.mark{width:30px;height:30px;border-radius:0;background:var(--accent);color:var(--accent-ink);display:grid;place-items:center;font-family:var(--f-mono);font-weight:600;font-size:13px;flex:none}
+.brand b{font-size:16px;font-weight:700;letter-spacing:-.01em}
+.brand span{display:block;font-size:12px;color:var(--muted)}
+.btn{border:1px solid var(--line);background:var(--surface);border-radius:0;padding:8px 12px;font-size:13.5px;font-weight:600;cursor:pointer;display:inline-flex;align-items:center;gap:6px;min-height:38px;white-space:nowrap}
+.btn:hover{border-color:var(--muted)}
+.btn.primary{background:var(--accent);color:var(--accent-ink);border-color:var(--accent)}
+.btn.danger-arm{background:var(--bad);border-color:var(--bad);color:#fff}
+
+.chips{display:flex;gap:6px;overflow-x:auto;padding:0 16px 10px;max-width:1180px;margin:0 auto;scrollbar-width:none}
+.chips::-webkit-scrollbar{display:none}
+.chip{flex:none;border:1px solid var(--line);background:var(--surface);border-radius:0;padding:7px 13px;font-size:13.5px;font-weight:500;cursor:pointer;position:relative;min-height:36px}
+.chip[aria-current="true"]{background:var(--accent);color:var(--accent-ink);border-color:var(--accent);font-weight:600}
+.chip .dot{display:inline-block;width:6px;height:6px;border-radius:0;background:var(--ok);margin-left:6px;vertical-align:middle}
+.chip[aria-current="true"] .dot{background:var(--accent-ink)}
+
+.wrap{max-width:1180px;margin:0 auto;padding-inline:16px;padding-block:16px 0;display:grid;gap:20px}
+.side{display:none}
+@media (min-width:960px){
+  .chips{display:none}
+  .wrap{grid-template-columns:230px minmax(0,1fr);align-items:start}
+  .side{display:flex;flex-direction:column;gap:2px;position:sticky;top:calc(env(safe-area-inset-top,0px) + 70px)}
+  .side .lbl{font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);padding:6px 10px;font-weight:600}
+  .side button{text-align:left;border:0;background:none;padding:8px 10px;border-radius:0;cursor:pointer;font-size:14px;display:flex;justify-content:space-between;align-items:center;gap:8px}
+  .side button:hover{background:var(--surface)}
+  .side button[aria-current="true"]{background:var(--accent-soft);color:var(--accent);font-weight:600}
+  .side small{font-family:var(--f-mono);font-size:12px;color:var(--muted)}
+}
+
+main{min-width:0}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:0;overflow:hidden}
+.head{padding:18px 18px 14px;border-bottom:1px solid var(--line)}
+.head h1{margin:0;font-size:21px;line-height:1.25;letter-spacing:-.015em;text-wrap:balance}
+.head p{margin:4px 0 0;color:var(--muted);font-size:14px}
+.headrow{display:flex;justify-content:space-between;gap:12px;align-items:flex-start}
+details.info{margin-top:12px;font-size:13.5px;color:var(--muted)}
+details.info summary{cursor:pointer;color:var(--accent);font-weight:600;font-size:13px;list-style:none}
+details.info summary::-webkit-details-marker{display:none}
+details.info summary::before{content:"▸ "}
+details.info[open] summary::before{content:"▾ "}
+details.info div{margin-top:8px;max-width:68ch}
+
+.grp{padding:4px 18px 6px}
+.grp h2{margin:14px 0 2px;font-size:12px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);font-weight:600}
+.item{display:grid;gap:8px;padding:12px 0;border-top:1px solid var(--line)}
+.grp h2 + .item{border-top:0}
+.item .q{font-size:14.5px;font-weight:500}
+.item .q small{display:block;color:var(--muted);font-weight:400;font-size:12.5px;margin-top:1px}
+.item .q .code{font-family:var(--f-mono);font-size:12px;color:var(--muted);margin-right:6px}
+@media (min-width:640px){.item.seg{grid-template-columns:minmax(0,1fr) minmax(250px,330px);align-items:center}}
+
+.opts{display:grid;gap:0;border:1px solid var(--line);border-radius:0;overflow:hidden;background:var(--surface-2)}
+.opts.two{grid-template-columns:1fr 1fr}
+.opt{display:flex;justify-content:space-between;align-items:center;gap:10px;border:0;background:transparent;padding:10px 14px;min-height:44px;cursor:pointer;text-align:left;font-size:14px;font-weight:500}
+.opts.two .opt + .opt{border-left:1px solid var(--line)}
+.opts.list .opt + .opt{border-top:1px solid var(--line)}
+.opt .pt{font-family:var(--f-mono);font-size:13px;color:var(--muted);flex:none;font-variant-numeric:tabular-nums}
+.opt:hover{background:var(--accent-soft)}
+.opt[aria-pressed="true"]{background:var(--accent);color:var(--accent-ink)}
+.opt[aria-pressed="true"] .pt{color:var(--accent-ink);opacity:.85}
+.opts.missing{border-color:var(--warn)}
+
+.num{display:flex;align-items:center;gap:8px}
+.num input{width:100%;max-width:160px;font:600 18px var(--f-mono);padding:10px 12px;border:1px solid var(--line);border-radius:0;background:var(--surface-2);color:var(--ink);min-height:46px}
+.num input:focus{outline:2px solid var(--accent);outline-offset:0;border-color:var(--accent)}
+.num span{color:var(--muted);font-size:13px}
+.item.numrow{grid-template-columns:minmax(0,1fr) auto;align-items:center}
+
+.foot{font-size:12px;color:var(--muted);padding:14px 18px 18px;border-top:1px solid var(--line)}
+
+.result{margin-top:14px}
+.res{background:var(--surface);border:1px solid var(--line);border-left:5px solid var(--muted);border-radius:0;padding:14px;display:grid;gap:10px}
+.rnote b{color:var(--ink);font-weight:600}
+.copybtn{width:100%;justify-content:center;min-height:48px;font-size:15px}
+.res[data-lv="ok"]{border-left-color:var(--ok)} .res[data-lv="warn"]{border-left-color:var(--warn)} .res[data-lv="bad"]{border-left-color:var(--bad)}
+.resrow{display:flex;align-items:center;gap:14px}
+.score{font-family:var(--f-mono);font-weight:600;font-size:30px;line-height:1;font-variant-numeric:tabular-nums;flex:none;min-width:2ch}
+.score small{font-size:13px;color:var(--muted);font-weight:500}
+.rtxt{min-width:0;flex:1}
+.pill{display:inline-block;font-size:12px;font-weight:700;letter-spacing:.02em;padding:2px 8px;border-radius:0;background:var(--surface-2);color:var(--muted)}
+.res[data-lv="ok"] .pill{background:var(--ok-soft);color:var(--ok)}
+.res[data-lv="warn"] .pill{background:var(--warn-soft);color:var(--warn)}
+.res[data-lv="bad"] .pill{background:var(--bad-soft);color:var(--bad)}
+.rlabel{font-weight:600;font-size:14.5px;margin-top:3px}
+.rnote{font-size:13px;color:var(--muted);margin-top:2px}
+.ractions{display:flex;gap:8px;flex:none}
+.soap{margin:0;font:13px/1.5 var(--f-mono);background:var(--surface-2);border:1px solid var(--line);border-radius:0;padding:10px 12px;white-space:pre-wrap;word-break:break-word;color:var(--ink)}
+@media (max-width:520px){
+  .resrow{flex-wrap:wrap}
+  .ractions{width:100%}
+  .ractions .btn{flex:1;justify-content:center;min-height:44px}
+  .score{font-size:28px}
+}
+
+.empty{padding:28px 18px;color:var(--muted);text-align:center}
+
+.toast{position:fixed;left:50%;bottom:calc(24px + env(safe-area-inset-bottom,0px));transform:translate(-50%,20px);background:var(--ink);color:var(--bg);padding:10px 16px;border-radius:0;font-size:14px;font-weight:600;opacity:0;pointer-events:none;transition:opacity .18s,transform .18s;z-index:50}
+.toast.on{opacity:1;transform:translate(-50%,0)}
+@media (prefers-reduced-motion:reduce){.toast{transition:none}}
+.disclaimer{max-width:1180px;margin:0 auto;padding:18px 16px 28px;font-size:12px;color:var(--muted)}
+</style>
+
+<header class="top">
+  <div class="bar">
+    <div class="brand"><div class="mark">Σ</div><div><b>Skor Klinis IGD</b><span id="sub">10 kalkulator · salin ke SOAP</span></div></div>
+    <button class="btn" id="resetAll" type="button" title="Hapus semua isian">Pasien baru</button>
+  </div>
+  <nav class="chips" id="chips" aria-label="Pilih kalkulator"></nav>
+</header>
+
+<div class="wrap">
+  <aside class="side" id="side" aria-label="Daftar kalkulator"></aside>
+  <main id="main"></main>
+</div>
+<p class="disclaimer">Alat bantu keputusan klinis. Hasil skor tidak menggantikan penilaian klinis, pemeriksaan penunjang, dan pedoman setempat. Isian hanya tersimpan selama halaman terbuka.</p>
+<div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+<script>
+const YN = (p, yes='Ya', no='Tidak') => [{l:no,p:0},{l:yes,p:p}];
+const fmt = n => (Math.round(n*100)/100).toString().replace('.', ',');
+const roman = ['','I','II','III','IV'];
+
+const CALCS = [
+{ id:'gcs', name:'Glasgow Coma Scale', short:'GCS', desc:'Menilai tingkat kesadaran (E + V + M).',
+  info:'Gunakan pada pasien trauma kepala atau penurunan kesadaran. Catat komponen E, V, M terpisah. Pada pasien terintubasi, komponen verbal ditulis "T" dan skor total tidak dapat dihitung secara akurat.',
+  groups:[
+    {t:'Eye — membuka mata', items:[{id:'e',label:'Respon membuka mata',def:null,opts:[{l:'Spontan',p:4},{l:'Terhadap suara',p:3},{l:'Terhadap nyeri',p:2},{l:'Tidak ada',p:1}]}]},
+    {t:'Verbal', items:[{id:'v',label:'Respon verbal terbaik',def:null,opts:[{l:'Orientasi baik',p:5},{l:'Bingung (confused)',p:4},{l:'Kata-kata tidak tepat',p:3},{l:'Suara tidak bermakna (mengerang)',p:2},{l:'Tidak ada',p:1}]}]},
+    {t:'Motorik', items:[{id:'m',label:'Respon motorik terbaik',def:null,opts:[{l:'Mengikuti perintah',p:6},{l:'Melokalisasi nyeri',p:5},{l:'Menarik dari nyeri (withdrawal)',p:4},{l:'Fleksi abnormal (dekortikasi)',p:3},{l:'Ekstensi abnormal (deserebrasi)',p:2},{l:'Tidak ada',p:1}]}]}
+  ],
+  max:15, plain:true,
+  bands:[
+    {max:8, lv:'bad', label:'Cedera otak / penurunan kesadaran berat', note:'GCS ≤8: pertimbangkan proteksi jalan napas (intubasi), CT scan kepala segera.'},
+    {max:12, lv:'warn', label:'Sedang', note:'GCS 9–12: observasi ketat, evaluasi neurologis serial, CT scan kepala.'},
+    {max:14, lv:'warn', label:'Ringan', note:'GCS 13–14: cedera kepala ringan; observasi dan nilai faktor risiko CT.'},
+    {max:15, lv:'ok', label:'Kesadaran baik (compos mentis)', note:'GCS 15.'}
+  ],
+  soap:(r,s)=>{ const p=(gi,k)=>CALCS.find(c=>c.id==='gcs').groups[gi].items[0].opts[s[k]].p; return `GCS: E${p(0,'e')}V${p(1,'v')}M${p(2,'m')} = ${r.score}/15 — ${r.label}`; }
+},
+{ id:'qsofa', name:'qSOFA', short:'qSOFA', desc:'Identifikasi pasien suspek infeksi dengan risiko luaran buruk.',
+  info:'Untuk pasien dengan dugaan infeksi di luar ICU. qSOFA bukan alat diagnosis sepsis; skor ≥2 mengarahkan evaluasi disfungsi organ (SOFA) dan pemantauan lebih ketat.',
+  groups:[{t:'Kriteria', items:[
+    {id:'rr',label:'Laju napas ≥22 x/menit',short:'RR ≥22',opts:YN(1)},
+    {id:'ms',label:'Perubahan status mental',hint:'GCS <15',short:'Perubahan status mental',opts:YN(1)},
+    {id:'sbp',label:'Tekanan darah sistolik ≤100 mmHg',short:'TDS ≤100',opts:YN(1)}
+  ]}],
+  max:3,
+  bands:[
+    {max:1, lv:'ok', label:'Risiko rendah', note:'qSOFA <2. Tetap waspada bila klinis mencurigakan sepsis.'},
+    {max:3, lv:'bad', label:'Risiko tinggi luaran buruk', note:'qSOFA ≥2: evaluasi skor SOFA, laktat, kultur, mulai bundle sepsis sesuai indikasi.'}
+  ]
+},
+{ id:'killip', name:'Klasifikasi Killip', short:'Killip', desc:'Derajat gagal jantung pada infark miokard akut.',
+  info:'Dinilai saat pemeriksaan fisik awal pasien dengan infark miokard akut. Angka mortalitas berdasarkan studi Killip & Kimball (1967).',
+  groups:[{t:'Temuan klinis', items:[
+    {id:'k',label:'Pilih temuan yang paling sesuai',def:null,hidePts:true,opts:[
+      {l:'Kelas I — Tanpa tanda gagal jantung',p:1},
+      {l:'Kelas II — Ronki basah, S3 gallop, atau JVP meningkat',p:2},
+      {l:'Kelas III — Edema paru akut',p:3},
+      {l:'Kelas IV — Syok kardiogenik (hipotensi, hipoperfusi)',p:4}]}
+  ]}],
+  plain:true,
+  scoreStr:s=>roman[s],
+  bands:[
+    {max:1, lv:'ok', label:'Killip I — tanpa gagal jantung', note:'Mortalitas ~6%.'},
+    {max:2, lv:'warn', label:'Killip II — gagal jantung ringan-sedang', note:'Mortalitas ~17%.'},
+    {max:3, lv:'bad', label:'Killip III — edema paru akut', note:'Mortalitas ~38%.'},
+    {max:4, lv:'bad', label:'Killip IV — syok kardiogenik', note:'Mortalitas ~81%.'}
+  ],
+  soap:r=>`Klasifikasi Killip: Kelas ${r.scoreStr} — ${r.label.split(' — ')[1]}. ${r.note}`
+},
+{ id:'curb', name:'CURB-65', short:'CURB-65', desc:'Derajat keparahan pneumonia komunitas.',
+  info:'Untuk pasien dewasa dengan pneumonia komunitas, membantu menentukan tempat perawatan. Ureum 42 mg/dL setara BUN 19 mg/dL atau urea 7 mmol/L.',
+  groups:[{t:'Kriteria', items:[
+    {id:'c',code:'C',label:'Confusion',hint:'Disorientasi baru terhadap orang, tempat, atau waktu',short:'Confusion',opts:YN(1)},
+    {id:'u',code:'U',label:'Ureum >42 mg/dL',hint:'BUN >19 mg/dL / urea >7 mmol/L',short:'Ureum >42',opts:YN(1)},
+    {id:'r',code:'R',label:'Laju napas ≥30 x/menit',short:'RR ≥30',opts:YN(1)},
+    {id:'b',code:'B',label:'TDS <90 atau TDD ≤60 mmHg',short:'TD rendah',opts:YN(1)},
+    {id:'age',code:'65',label:'Usia ≥65 tahun',short:'Usia ≥65',opts:YN(1)}
+  ]}],
+  max:5,
+  bands:[
+    {max:0, lv:'ok', label:'Risiko rendah (mortalitas 30 hari 0,6%)', note:'Pertimbangkan rawat jalan.'},
+    {max:1, lv:'ok', label:'Risiko rendah (mortalitas 30 hari 2,7%)', note:'Pertimbangkan rawat jalan.'},
+    {max:2, lv:'warn', label:'Risiko sedang (mortalitas 30 hari 6,8%)', note:'Pertimbangkan rawat inap singkat atau rawat jalan dengan pengawasan ketat.'},
+    {max:3, lv:'bad', label:'Berat (mortalitas 30 hari 14%)', note:'Rawat inap; nilai kebutuhan ICU.'},
+    {max:5, lv:'bad', label:'Berat (mortalitas 30 hari 27,8%)', note:'Rawat inap; pertimbangkan perawatan ICU.'}
+  ]
+},
+{ id:'alvarado', name:'Skor Alvarado', short:'Alvarado', desc:'Prediksi kemungkinan apendisitis akut (MANTRELS).',
+  info:'Untuk pasien dengan nyeri perut suspek apendisitis. Skor rendah membantu menyingkirkan; skor tinggi tetap memerlukan konfirmasi klinis atau pencitraan dan konsultasi bedah.',
+  groups:[
+    {t:'Tanda', items:[
+      {id:'t',label:'Nyeri tekan kuadran kanan bawah',short:'Nyeri tekan RLQ',opts:YN(2)},
+      {id:'e',label:'Peningkatan suhu (≥37,3 °C)',short:'Suhu ≥37,3 °C',opts:YN(1)},
+      {id:'r',label:'Nyeri lepas (rebound tenderness)',short:'Rebound',opts:YN(1)}]},
+    {t:'Gejala', items:[
+      {id:'m',label:'Migrasi nyeri ke kuadran kanan bawah',short:'Migrasi nyeri',opts:YN(1)},
+      {id:'a',label:'Anoreksia',short:'Anoreksia',opts:YN(1)},
+      {id:'n',label:'Mual atau muntah',short:'Mual/muntah',opts:YN(1)}]},
+    {t:'Laboratorium', items:[
+      {id:'l',label:'Leukositosis >10.000/µL',short:'Leukositosis',opts:YN(2)},
+      {id:'s',label:'Shift to the left',hint:'Neutrofil >75%',short:'Shift to the left',opts:YN(1)}]}
+  ],
+  max:10,
+  bands:[
+    {max:4, lv:'ok', label:'Apendisitis tidak mungkin', note:'Pertimbangkan diagnosis lain; observasi bila keluhan menetap.'},
+    {max:6, lv:'warn', label:'Mungkin apendisitis (compatible)', note:'Observasi, ulangi penilaian, pertimbangkan USG/CT abdomen.'},
+    {max:8, lv:'bad', label:'Kemungkinan besar apendisitis (probable)', note:'Konsultasi bedah.'},
+    {max:10, lv:'bad', label:'Sangat mungkin apendisitis (very probable)', note:'Konsultasi bedah segera.'}
+  ]
+},
+{ id:'map', name:'Mean Arterial Pressure', short:'MAP', desc:'Tekanan arteri rata-rata dari tekanan darah sistolik dan diastolik.',
+  info:'MAP = (TDS + 2 × TDD) / 3. Target MAP ≥65 mmHg pada syok septik. MAP 70–100 mmHg umumnya cukup untuk perfusi organ.',
+  groups:[{t:'Tekanan darah', items:[
+    {id:'s',label:'Tekanan darah sistolik',type:'num',unit:'mmHg',ph:'120'},
+    {id:'d',label:'Tekanan darah diastolik',type:'num',unit:'mmHg',ph:'80'}]}],
+  compute:s=>{
+    const S=+s.s, D=+s.d;
+    if(!s.s||!s.d) return {ready:false,msg:'Masukkan TD sistolik dan diastolik'};
+    if(S<=0||D<=0||D>=S) return {ready:false,msg:'Periksa nilai: TDD harus lebih kecil dari TDS'};
+    const m=(S+2*D)/3; return {ready:true,score:m,scoreStr:Math.round(m)+'',unit:'mmHg'};
+  },
+  bands:[
+    {max:64.999, lv:'bad', label:'Rendah — risiko hipoperfusi organ', note:'MAP <65 mmHg: evaluasi syok, resusitasi cairan / vasopresor sesuai indikasi.'},
+    {max:69.999, lv:'warn', label:'Batas bawah', note:'MAP 65–69 mmHg: pantau perfusi dan diuresis.'},
+    {max:100, lv:'ok', label:'Normal', note:'MAP 70–100 mmHg.'},
+    {max:9999, lv:'warn', label:'Meningkat', note:'MAP >100 mmHg: evaluasi hipertensi dan kerusakan organ target.'}
+  ],
+  soap:(r,s)=>`MAP: ${r.scoreStr} mmHg (TD ${s.s}/${s.d} mmHg) — ${r.label}`
+},
+{ id:'nihss', name:'NIH Stroke Scale', short:'NIHSS', desc:'Derajat defisit neurologis pada stroke akut.',
+  info:'Nilai item sesuai urutan. Catat kemampuan pasien, bukan perkiraan kemampuan. Item yang tidak dapat dinilai (mis. amputasi) diberi 0 dan dijelaskan di catatan.',
+  groups:[
+    {t:'Kesadaran', items:[
+      {id:'1a',code:'1a',label:'Tingkat kesadaran',opts:[{l:'Sadar penuh',p:0},{l:'Somnolen, bangun dengan rangsang ringan',p:1},{l:'Stupor, perlu rangsang berulang/nyeri',p:2},{l:'Koma, hanya respons refleks / tidak ada',p:3}]},
+      {id:'1b',code:'1b',label:'Pertanyaan (bulan & usia)',opts:[{l:'Keduanya benar',p:0},{l:'Satu benar',p:1},{l:'Keduanya salah',p:2}]},
+      {id:'1c',code:'1c',label:'Perintah (buka-tutup mata, kepal tangan)',opts:[{l:'Keduanya benar',p:0},{l:'Satu benar',p:1},{l:'Keduanya salah',p:2}]}]},
+    {t:'Saraf kranial', items:[
+      {id:'2',code:'2',label:'Gerakan bola mata (gaze)',opts:[{l:'Normal',p:0},{l:'Paresis gaze parsial',p:1},{l:'Deviasi paksa / paresis total',p:2}]},
+      {id:'3',code:'3',label:'Lapang pandang',opts:[{l:'Tidak ada gangguan',p:0},{l:'Hemianopia parsial',p:1},{l:'Hemianopia komplit',p:2},{l:'Hemianopia bilateral (buta)',p:3}]},
+      {id:'4',code:'4',label:'Paresis wajah',opts:[{l:'Normal',p:0},{l:'Ringan (lipatan nasolabial datar)',p:1},{l:'Parsial (wajah bawah)',p:2},{l:'Komplit (wajah atas & bawah)',p:3}]}]},
+    {t:'Motorik', items:[
+      {id:'5a',code:'5a',label:'Lengan kiri',opts:[{l:'Tidak ada drift (10 detik)',p:0},{l:'Drift, tidak menyentuh kasur',p:1},{l:'Ada usaha melawan gravitasi',p:2},{l:'Tidak ada usaha melawan gravitasi',p:3},{l:'Tidak ada gerakan',p:4}]},
+      {id:'5b',code:'5b',label:'Lengan kanan',opts:[{l:'Tidak ada drift (10 detik)',p:0},{l:'Drift, tidak menyentuh kasur',p:1},{l:'Ada usaha melawan gravitasi',p:2},{l:'Tidak ada usaha melawan gravitasi',p:3},{l:'Tidak ada gerakan',p:4}]},
+      {id:'6a',code:'6a',label:'Tungkai kiri',opts:[{l:'Tidak ada drift (5 detik)',p:0},{l:'Drift, tidak menyentuh kasur',p:1},{l:'Ada usaha melawan gravitasi',p:2},{l:'Tidak ada usaha melawan gravitasi',p:3},{l:'Tidak ada gerakan',p:4}]},
+      {id:'6b',code:'6b',label:'Tungkai kanan',opts:[{l:'Tidak ada drift (5 detik)',p:0},{l:'Drift, tidak menyentuh kasur',p:1},{l:'Ada usaha melawan gravitasi',p:2},{l:'Tidak ada usaha melawan gravitasi',p:3},{l:'Tidak ada gerakan',p:4}]},
+      {id:'7',code:'7',label:'Ataksia anggota gerak',opts:[{l:'Tidak ada',p:0},{l:'Pada 1 ekstremitas',p:1},{l:'Pada 2 ekstremitas',p:2}]}]},
+    {t:'Sensorik, bahasa, atensi', items:[
+      {id:'8',code:'8',label:'Sensorik',opts:[{l:'Normal',p:0},{l:'Gangguan ringan–sedang',p:1},{l:'Gangguan berat / total',p:2}]},
+      {id:'9',code:'9',label:'Bahasa (afasia)',opts:[{l:'Normal',p:0},{l:'Afasia ringan–sedang',p:1},{l:'Afasia berat',p:2},{l:'Mutisme / afasia global',p:3}]},
+      {id:'10',code:'10',label:'Disartria',opts:[{l:'Normal',p:0},{l:'Ringan–sedang',p:1},{l:'Berat / tidak dapat dimengerti',p:2}]},
+      {id:'11',code:'11',label:'Ekstinsi / inatensi (neglect)',opts:[{l:'Tidak ada',p:0},{l:'Pada 1 modalitas',p:1},{l:'Hemi-inatensi berat / >1 modalitas',p:2}]}]}
+  ],
+  max:42,
+  detail:(s,c)=>{ const a=[]; c.groups.forEach(g=>g.items.forEach(i=>{const p=i.opts[s[i.id]].p; if(p) a.push(i.code+'='+p);})); return a.length?a.join(', '):'semua item 0'; },
+  bands:[
+    {max:0, lv:'ok', label:'Tidak ada defisit neurologis', note:'NIHSS 0.'},
+    {max:4, lv:'warn', label:'Stroke ringan', note:'NIHSS 1–4.'},
+    {max:15, lv:'bad', label:'Stroke sedang', note:'NIHSS 5–15.'},
+    {max:20, lv:'bad', label:'Stroke sedang–berat', note:'NIHSS 16–20.'},
+    {max:42, lv:'bad', label:'Stroke berat', note:'NIHSS 21–42.'}
+  ]
+},
+{ id:'hasanuddin', name:'Skor Hasanuddin', short:'Hasanuddin', desc:'Membedakan stroke hemoragik dan non-hemoragik secara klinis.',
+  info:'Dikembangkan Bagian Neurologi FK Universitas Hasanuddin, untuk fasilitas tanpa CT scan. CT scan kepala tetap baku emas. Nilai poin sesuai tabel yang beredar; cocokkan dengan rujukan institusi Anda.',
+  groups:[{t:'Kriteria', items:[
+    {id:'td',label:'Tekanan darah',short:'TD',opts:[{l:'TDS ≥200 atau TDD ≥110 mmHg',p:7.5},{l:'TDS <200 dan TDD <110 mmHg',p:1}],def:1},
+    {id:'ws',label:'Waktu serangan',short:'Onset',opts:[{l:'Saat aktivitas',p:6.5},{l:'Tidak saat aktivitas',p:1}],def:1},
+    {id:'sk',label:'Sakit kepala',short:'Sakit kepala',opts:[{l:'Sangat hebat',p:10},{l:'Hebat',p:7.5},{l:'Ringan',p:1},{l:'Tidak ada',p:0}],def:3},
+    {id:'kes',label:'Penurunan kesadaran',short:'Penurunan kesadaran',opts:[{l:'Langsung s.d. 1 jam setelah onset',p:10},{l:'1–24 jam setelah onset',p:7.5},{l:'Sesaat, lalu pulih',p:6},{l:'≥24 jam setelah onset',p:1},{l:'Tidak ada',p:0}],def:4},
+    {id:'mt',label:'Muntah proyektil',short:'Muntah proyektil',opts:[{l:'Langsung s.d. 1 jam setelah onset',p:10},{l:'1–<24 jam setelah onset',p:7.5},{l:'≥24 jam setelah onset',p:1},{l:'Tidak ada',p:0}],def:3}
+  ]}],
+  detail:(s,c)=>c.groups[0].items.map(i=>`${i.short} ${fmt(i.opts[s[i.id]].p)}`).join(', '),
+  bands:[
+    {max:14.999, lv:'warn', label:'Stroke non-hemoragik (iskemik)', note:'Skor <15. Konfirmasi dengan CT scan kepala.'},
+    {max:99, lv:'bad', label:'Stroke hemoragik', note:'Skor ≥15. Konfirmasi dengan CT scan kepala.'}
+  ]
+},
+{ id:'abcd', name:'ABCD² Score', short:'ABCD²', desc:'Risiko stroke dalam 2 hari setelah TIA.',
+  info:'Untuk pasien dengan transient ischemic attack (TIA). Skor ABCD original tidak memasukkan diabetes (maks 6); ABCD² menambah 1 poin untuk diabetes (maks 7).',
+  groups:[{t:'Kriteria', items:[
+    {id:'a',code:'A',label:'Usia ≥60 tahun',short:'Usia ≥60',opts:YN(1)},
+    {id:'b',code:'B',label:'TD ≥140/90 mmHg saat evaluasi awal',short:'TD ≥140/90',opts:YN(1)},
+    {id:'c',code:'C',label:'Gambaran klinis',short:'Klinis',opts:[{l:'Lainnya',p:0},{l:'Gangguan bicara tanpa kelemahan',p:1},{l:'Kelemahan unilateral',p:2}]},
+    {id:'d',code:'D',label:'Durasi gejala',short:'Durasi',opts:[{l:'<10 menit',p:0},{l:'10–59 menit',p:1},{l:'≥60 menit',p:2}]},
+    {id:'dm',code:'D',label:'Diabetes melitus',short:'DM',opts:YN(1)}
+  ]}],
+  max:7,
+  detail:(s,c)=>c.groups[0].items.map(i=>`${i.short} ${i.opts[s[i.id]].p}`).join(', '),
+  bands:[
+    {max:3, lv:'ok', label:'Risiko rendah (stroke 2 hari 1,0%)', note:'Evaluasi TIA rawat jalan cepat dapat dipertimbangkan.'},
+    {max:5, lv:'warn', label:'Risiko sedang (stroke 2 hari 4,1%)', note:'Pertimbangkan rawat inap / evaluasi dalam 24 jam.'},
+    {max:7, lv:'bad', label:'Risiko tinggi (stroke 2 hari 8,1%)', note:'Rawat inap untuk evaluasi dan terapi segera.'}
+  ]
+},
+{ id:'si', name:'Shock Index', short:'Shock Index', desc:'Rasio nadi terhadap tekanan darah sistolik.',
+  info:'SI = nadi / TDS. Lebih sensitif daripada tanda vital tunggal untuk mendeteksi syok tersembunyi, terutama pada trauma dan perdarahan.',
+  groups:[{t:'Tanda vital', items:[
+    {id:'hr',label:'Frekuensi nadi',type:'num',unit:'x/menit',ph:'90'},
+    {id:'s',label:'Tekanan darah sistolik',type:'num',unit:'mmHg',ph:'120'}]}],
+  compute:s=>{
+    if(!s.hr||!s.s) return {ready:false,msg:'Masukkan nadi dan TD sistolik'};
+    if(+s.hr<=0||+s.s<=0) return {ready:false,msg:'Periksa nilai input'};
+    const v=+s.hr/+s.s; return {ready:true,score:v,scoreStr:fmt(Math.round(v*100)/100)};
+  },
+  bands:[
+    {max:0.699, lv:'ok', label:'Normal', note:'SI 0,5–0,7.'},
+    {max:0.999, lv:'warn', label:'Meningkat — waspada syok', note:'SI 0,7–0,99: pantau ketat, cari sumber perdarahan / hipovolemia.'},
+    {max:1.399, lv:'bad', label:'Syok', note:'SI ≥1,0: risiko instabilitas hemodinamik, pertimbangkan resusitasi agresif / transfusi.'},
+    {max:99, lv:'bad', label:'Syok berat', note:'SI ≥1,4: risiko tinggi transfusi masif dan mortalitas.'}
+  ],
+  soap:(r,s)=>`Shock Index: ${r.scoreStr} (N ${s.hr} x/m, TDS ${s.s} mmHg) — ${r.label}`
+}
+];
+
+const ORDER=['gcs','si','map','qsofa','killip','curb','alvarado','nihss','hasanuddin','abcd'];
+CALCS.sort((a,b)=>ORDER.indexOf(a.id)-ORDER.indexOf(b.id));
+
+/* ---------- state ---------- */
+const S = {}, touched = {};
+function initState(c){
+  S[c.id] = {};
+  c.groups.forEach(g=>g.items.forEach(i=>{
+    if(i.type==='num') S[c.id][i.id]='';
+    else S[c.id][i.id] = i.def===null ? null : (i.def ?? 0);
+  }));
+  touched[c.id]=false;
+}
+CALCS.forEach(initState);
+
+const store = { get(k){try{return localStorage.getItem(k)}catch(e){return null}}, set(k,v){try{localStorage.setItem(k,v)}catch(e){}} };
+let cur = (location.hash||'').slice(1) || store.get('sk.cur') || 'gcs';
+if(!CALCS.find(c=>c.id===cur)) cur='gcs';
+
+/* ---------- evaluation ---------- */
+function band(c,score){ return c.bands.find(b=>score<=b.max) || c.bands[c.bands.length-1]; }
+function evaluate(c){
+  const s=S[c.id]; let r;
+  if(c.compute){ r=c.compute(s); }
+  else{
+    let sum=0, missing=[];
+    c.groups.forEach(g=>g.items.forEach(i=>{ if(s[i.id]===null) missing.push(i.code||g.t.split(' ')[0]); else sum+=i.opts[s[i.id]].p; }));
+    if(missing.length) return {ready:false,msg:'Lengkapi: '+c.groups.filter(g=>g.items.some(i=>s[i.id]===null)).map(g=>g.t.split(' — ')[0]).join(', ')};
+    r={ready:true,score:sum,scoreStr:c.scoreStr?c.scoreStr(sum):fmt(sum)};
+  }
+  if(!r.ready) return r;
+  const b=band(c,r.score); Object.assign(r,{label:b.label,lv:b.lv,note:b.note});
+  r.text = soapText(c,r);
+  return r;
+}
+function soapText(c,r){
+  const s=S[c.id];
+  if(c.soap) return c.soap(r,s) + (c.id==='killip'?'':`\n  Interpretasi: ${r.note}`);
+  let line=`${c.name}: ${r.scoreStr}${c.max?'/'+c.max:''} — ${r.label}`;
+  let det;
+  if(c.detail) det=c.detail(s,c);
+  else{
+    const pos=[]; c.groups.forEach(g=>g.items.forEach(i=>{const p=i.opts[s[i.id]].p; if(p) pos.push(`${i.short||i.label} (+${fmt(p)})`);}));
+    det=pos.length?pos.join(', '):'tidak ada kriteria positif';
+  }
+  return `${line}\n  Komponen: ${det}\n  Interpretasi: ${r.note}`;
+}
+
+/* ---------- render ---------- */
+const $=s=>document.querySelector(s);
+const esc=t=>String(t).replace(/[&<>"]/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[m]));
+
+function renderNav(){
+  const chip=c=>`<button class="chip" type="button" data-go="${c.id}" aria-current="${cur===c.id}">${esc(c.short)}${touched[c.id]?'<span class="dot"></span>':''}</button>`;
+  $('#chips').innerHTML = CALCS.map(chip).join('');
+  $('#side').innerHTML = '<div class="lbl">Kalkulator</div>' + CALCS.map(c=>{
+    const r=touched[c.id]?evaluate(c):null;
+    return `<button type="button" data-go="${c.id}" aria-current="${cur===c.id}"><span>${esc(c.short)}</span>${r&&r.ready?`<small>${esc(r.scoreStr)}</small>`:''}</button>`;
+  }).join('');
+}
+
+function renderItem(c,i){
+  const v=S[c.id][i.id];
+  const code=i.code?`<span class="code">${esc(i.code)}</span>`:'';
+  const q=`<div class="q">${code}${esc(i.label)}${i.hint?`<small>${esc(i.hint)}</small>`:''}</div>`;
+  if(i.type==='num'){
+    return `<div class="item numrow">${q}<label class="num"><input id="${c.id}-${i.id}" data-num="${i.id}" type="number" inputmode="decimal" min="0" placeholder="${i.ph}" value="${esc(v)}" aria-label="${esc(i.label)}"><span>${esc(i.unit)}</span></label></div>`;
+  }
+  const two = i.opts.length===2 && i.opts.every(o=>o.l.length<=14);
+  const opts=i.opts.map((o,k)=>`<button type="button" class="opt" data-item="${i.id}" data-o="${k}" aria-pressed="${v===k}"><span>${esc(o.l)}</span>${i.hidePts?'':`<span class="pt">${c.plain?o.p:(o.p?'+'+fmt(o.p):'0')}</span>`}</button>`).join('');
+  return `<div class="item ${two?'seg':''}">${q}<div class="opts ${two?'two':'list'}" role="group" aria-label="${esc(i.label)}">${opts}</div></div>`;
+}
+
+function renderMain(){
+  const c=CALCS.find(x=>x.id===cur);
+  $('#main').innerHTML = `
+  <article class="card">
+    <div class="head">
+      <div class="headrow"><div><h1>${esc(c.name)}</h1><p>${esc(c.desc)}</p></div>
+      <button class="btn" type="button" id="resetOne">Reset</button></div>
+      <details class="info"><summary>Kapan digunakan</summary><div>${esc(c.info)}</div></details>
+    </div>
+    ${c.groups.map(g=>`<section class="grp"><h2>${esc(g.t)}</h2>${g.items.map(i=>renderItem(c,i)).join('')}</section>`).join('')}
+  </article>
+  <div class="result" aria-live="polite"><div class="res" id="res"></div></div>`;
+  renderResult();
+}
+
+function renderResult(){
+  const c=CALCS.find(x=>x.id===cur); if(!c) return;
+  const r=evaluate(c), el=$('#res');
+  if(!r.ready){
+    el.dataset.lv='';
+    el.innerHTML=`<div class="resrow"><div class="score">–</div><div class="rtxt"><span class="pill">Belum lengkap</span><div class="rnote">${esc(r.msg)}</div></div></div>`;
+    return;
+  }
+  el.dataset.lv=r.lv;
+  const unit=r.unit?` <small>${r.unit}</small>`:(c.max?` <small>/${c.max}</small>`:'');
+  el.innerHTML=`<div class="resrow">
+      <div class="score">${esc(r.scoreStr)}${unit}</div>
+      <div class="rtxt"><span class="pill">${esc(c.short)}</span><div class="rlabel">${esc(r.label)}</div></div>
+    </div>
+    <div class="rnote"><b>Interpretasi:</b> ${esc(r.note)}</div>
+    <pre class="soap" aria-label="Teks untuk SOAP">${esc(r.text)}</pre>
+    <button class="btn primary copybtn" type="button" id="copyOne">Salin ke SOAP</button>`;
+}
+
+function go(id){
+  cur=id; store.set('sk.cur',id);
+  try{history.replaceState(null,'','#'+id)}catch(e){}
+  renderNav(); renderMain(); window.scrollTo({top:0});
+  const chip=document.querySelector(`.chip[data-go="${id}"]`); if(chip) chip.scrollIntoView({inline:'center',block:'nearest'});
+}
+
+/* ---------- clipboard ---------- */
+function toast(msg){ const t=$('#toast'); t.textContent=msg; t.classList.add('on'); clearTimeout(toast._t); toast._t=setTimeout(()=>t.classList.remove('on'),1600); }
+function copy(text){
+  const fallback=()=>{
+    const ta=document.createElement('textarea'); ta.value=text; ta.setAttribute('readonly',''); ta.style.position='fixed'; ta.style.opacity='0';
+    document.body.appendChild(ta); ta.select(); let ok=false; try{ok=document.execCommand('copy')}catch(e){} ta.remove();
+    toast(ok?'Disalin ke clipboard':'Salin manual dari kotak teks');
+  };
+  if(navigator.clipboard&&navigator.clipboard.writeText){ navigator.clipboard.writeText(text).then(()=>toast('Disalin ke clipboard'),fallback); }
+  else fallback();
+}
+
+/* ---------- events ---------- */
+document.addEventListener('click',e=>{
+  const g=e.target.closest('[data-go]'); if(g){ go(g.dataset.go); return; }
+  const o=e.target.closest('.opt');
+  if(o){
+    const c=CALCS.find(x=>x.id===cur), id=o.dataset.item, k=+o.dataset.o;
+    S[c.id][id]=k; touched[c.id]=true;
+    o.parentElement.querySelectorAll('.opt').forEach(b=>b.setAttribute('aria-pressed',b===o));
+    renderResult(); renderNav(); return;
+  }
+  if(e.target.closest('#copyOne')){ const c=CALCS.find(x=>x.id===cur); const r=evaluate(c); if(r.ready){ touched[c.id]=true; copy(r.text); renderNav(); } return; }
+  if(e.target.closest('#resetOne')){ const c=CALCS.find(x=>x.id===cur); initState(c); renderNav(); renderMain(); toast('Isian '+c.short+' direset'); return; }
+  const ra=e.target.closest('#resetAll');
+  if(ra){
+    if(!ra.classList.contains('danger-arm')){ ra.classList.add('danger-arm'); ra.textContent='Ketuk lagi untuk hapus'; clearTimeout(ra._t); ra._t=setTimeout(()=>{ra.classList.remove('danger-arm'); ra.textContent='Pasien baru';},3000); return; }
+    ra.classList.remove('danger-arm'); ra.textContent='Pasien baru';
+    CALCS.forEach(initState); renderNav(); renderMain(); toast('Semua isian dihapus');
+  }
+});
+document.addEventListener('input',e=>{
+  const n=e.target.closest('[data-num]'); if(!n) return;
+  const c=CALCS.find(x=>x.id===cur); S[c.id][n.dataset.num]=n.value; touched[c.id]=true;
+  renderResult(); renderNav();
+});
+window.addEventListener('hashchange',()=>{const h=location.hash.slice(1); if(h&&h!==cur&&CALCS.find(c=>c.id===h)) go(h);});
+
+renderNav(); renderMain();
+</script>
+
+<script>if("serviceWorker"in navigator)addEventListener("load",()=>navigator.serviceWorker.register("sw.js").catch(()=>{}))</script></body></html>
